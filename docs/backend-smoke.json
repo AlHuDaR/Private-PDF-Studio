@@ -1,0 +1,18 @@
+{
+  "scope": "Direct PDFium WASM backend; Flutter application not exercised",
+  "backend": "pdfrx 2.12.1 bundled PDFium WASM",
+  "wasmSha256": "5b2cbb18e9dc361dae375e971c7e75f7306d39b7749ad4fced475579e6a549df",
+  "browser": "156.0.8078.79",
+  "offline": true,
+  "passed": [
+    "import valid PDFs",
+    "merge round trip",
+    "split/extract round trip",
+    "reorder and additive rotation round trip",
+    "Arabic embedded text preservation",
+    "password-protected input rejected",
+    "empty-password encryption detected",
+    "malformed PDF rejected"
+  ],
+  "noDocumentHttpRequests": true
+}

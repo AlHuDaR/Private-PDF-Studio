@@ -1,0 +1,7 @@
+{
+  "name": "pdf-studio-backend-validation",
+  "private": true,
+  "type": "module",
+  "scripts": {"test": "node wasm_smoke.mjs"},
+  "devDependencies": {"playwright": "1.58.2"}
+}

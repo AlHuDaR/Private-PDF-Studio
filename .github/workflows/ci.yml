@@ -1,0 +1,115 @@
+name: Flutter validation
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: flutter-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_SUPPRESS_ANALYTICS: 'true'
+  DART_SUPPRESS_ANALYTICS: 'true'
+
+jobs:
+  analyze-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.50.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: dart format --output=none --set-exit-if-changed lib test integration_test test_driver
+      - run: flutter analyze --fatal-infos
+      - run: flutter test --reporter expanded
+      - name: Preserve resolved versions for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-resolution
+          path: pubspec.lock
+          if-no-files-found: ignore
+
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.50.0'
+          channel: stable
+          cache: true
+      - uses: browser-actions/setup-chrome@v2
+        id: chrome
+        with:
+          install-chromedriver: true
+      - run: flutter pub get
+      - name: Real PDFium WASM round-trip tests
+        env:
+          CHROME_EXECUTABLE: ${{ steps.chrome.outputs.chrome-path }}
+        run: |
+          "${{ steps.chrome.outputs.chromedriver-path }}" --port=4444 > "$RUNNER_TEMP/chromedriver.log" 2>&1 &
+          flutter drive --driver=test_driver/integration_test.dart --target=integration_test/pdf_engine_test.dart -d web-server --browser-name=chrome --headless
+      - run: tool/build_web.sh
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts
+        working-directory: tool/browser
+      - name: Offline WASM backend and network boundary smoke test
+        env:
+          CHROME_EXECUTABLE: ${{ steps.chrome.outputs.chrome-path }}
+        run: node tool/browser/wasm_smoke.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-offline-bundle
+          path: build/web/
+          if-no-files-found: error
+
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.50.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Build evaluation APK (debug signing, not a store release)
+        run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-evaluation-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.50.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter test --reporter expanded
+      - run: flutter build windows --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-portable-bundle
+          path: build/windows/x64/runner/Release/
+          if-no-files-found: error
